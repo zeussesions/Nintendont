@@ -21,11 +21,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "apploader.h"
 #include "dip.h"
 
-typedef int   (*app_main)(char **dst, u32 *size, u32 *offset);
+typedef int (*app_main)(void **dst, int *size, int *offset);
 typedef void  (*app_init)(int (*report)(const char *fmt, ...));
 typedef void *(*app_final)();
-typedef void  (*app_entry)(void (**init)(int (*report)(const char *fmt, ...)), int (**main)(), void *(**final)());
-
+typedef void (*app_entry)(
+    void (**init)(int (*report)(const char *fmt, ...)),
+    int (**main)(void **dst, int *len, int *offset),
+    void *(**final)()
+);
 static u8 *appldr = (u8*)0x81200000;
 static struct _TGCInfo *TGCInfo = (struct _TGCInfo*)0x930031E0;
 
@@ -34,7 +37,7 @@ static struct _TGCInfo *TGCInfo = (struct _TGCInfo*)0x930031E0;
 
 static int noprintf( const char *str, ... ) { return 0; };
 
-void PrepareTGC(u32 Offset)
+void PrepareTGC(int Offset)
 {
 	if(TGCInfo->isTGC == 0)
 		return;
@@ -43,7 +46,7 @@ void PrepareTGC(u32 Offset)
 		TGCInfo->tgcoffset = 0; /* we can stop the manual offset correction */
 }
 
-void ParseTGC(char *Data, u32 Length, u32 Offset)
+void ParseTGC(char *Data, int Length, int Offset)
 {
 	if(TGCInfo->isTGC == 0)
 		return;
@@ -90,8 +93,8 @@ u32 Apploader_Run()
 	app_main  appldr_main;
 	app_final appldr_final;
 
-	char *dst;
-	u32 len, offset;
+	void *dst;
+	int len, offset;
 
 	sync_before_read(TGCInfo, sizeof(struct _TGCInfo));
 
